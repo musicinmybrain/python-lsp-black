@@ -100,6 +100,21 @@ def format_text(*, text, config, lines):
         magic_trailing_comma=not config["skip_magic_trailing_comma"],
         preview=config["preview"],
     )
+    handled_errors = (
+        # raised when the file has syntax errors
+        ValueError,
+        # raised when the file being formatted has an indentation error
+        IndentationError,
+        # raised when black produces invalid Python code or formats the file
+        # differently on the second pass
+        black.parsing.ASTSafetyError,
+    )
+    # SourceASTParseError was split out from ASTSafetyError in black 26.5.0,
+    # https://github.com/psf/black/pull/5080; expect it if it exists.
+    try:
+        handled_errors += (black.parsing.SourceASTParseError,)
+    except AttributeError:
+        pass
     try:
         # Black's format_file_contents only works reliably when eols are '\n'. It gives
         # an error for '\r' and produces wrong formatting for '\r\n'. So we replace
@@ -120,15 +135,7 @@ def format_text(*, text, config, lines):
             formatted_text = formatted_text.replace("\n", eol_chars)
 
         return formatted_text
-    except (
-        # raised when the file has syntax errors
-        ValueError,
-        # raised when the file being formatted has an indentation error
-        IndentationError,
-        # raised when black produces invalid Python code or formats the file
-        # differently on the second pass
-        black.parsing.ASTSafetyError,
-    ) as e:
+    except handled_errors as e:
         # errors will show on lsp stderr stream
         logger.error("Error formatting with black: %s", e)
         raise black.NothingChanged from e
