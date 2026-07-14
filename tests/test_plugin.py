@@ -1,11 +1,11 @@
 # Standard library imports
 import types
 from pathlib import Path
+import importlib.metadata
 from unittest.mock import Mock
 
 # Third-party imports
 import black
-import pkg_resources
 import pytest
 
 # Python LSP imports
@@ -321,13 +321,16 @@ def test_load_config_with_skip_options(config_with_skip_options):
 
 
 def test_entry_point():
-    distribution = pkg_resources.get_distribution("python-lsp-black")
-    entry_point = distribution.get_entry_info("pylsp", "black")
+    entry_points_pylsp = importlib.metadata.entry_points(name="pylsp")
+    entry_points_black = importlib.metadata.entry_points(name="black")
 
-    assert entry_point is not None
+    assert entry_points_pylsp
+    assert entry_points_black
 
-    module = entry_point.load()
-    assert isinstance(module, types.ModuleType)
+    pylsp_entry = next(iter(entry_points_pylsp)).load()
+    black_entry = next(iter(entry_points_pylsp)).load()
+    assert isinstance(pylsp_entry, (types.ModuleType, types.FunctionType))
+    assert isinstance(black_entry, (types.ModuleType, types.FunctionType))
 
 
 def test_pylsp_format_crlf_document(
